@@ -7,7 +7,6 @@
 package opencv2_cookbook
 
 
-import com.googlecode.javacv.CanvasFrame
 import com.googlecode.javacv.cpp.opencv_core._
 import com.googlecode.javacv.cpp.opencv_features2d.KeyPoint
 import com.googlecode.javacv.cpp.opencv_highgui._
@@ -132,7 +131,7 @@ object OpenCVUtils {
      * Show image in a window. Closing the window will exit the application.
      */
     def show(image: IplImage, title: String) {
-        val canvas = new CanvasFrame(title, 1)
+        val canvas = new CanvasFrameEx(title, 1)
         canvas.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
         canvas.showImage(image)
     }
@@ -142,7 +141,7 @@ object OpenCVUtils {
      * Show image in a window. Closing the window will exit the application.
      */
     def show(mat: CvMat, title: String) {
-        val canvas = new CanvasFrame(title, 1)
+        val canvas = new CanvasFrameEx(title, 1)
         canvas.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
         canvas.showImage(mat.asIplImage())
     }
@@ -152,7 +151,7 @@ object OpenCVUtils {
      * Show image in a window. Closing the window will exit the application.
      */
     def show(image: Image, title: String) {
-        val canvas = new CanvasFrame(title, 1)
+        val canvas = new CanvasFrameEx(title, 1)
         canvas.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
         canvas.showImage(image)
     }

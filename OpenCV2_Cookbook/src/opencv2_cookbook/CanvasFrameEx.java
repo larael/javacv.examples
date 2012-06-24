@@ -178,12 +178,17 @@ public class CanvasFrameEx extends JFrame {
                     canvas = new Canvas() {
                         @Override
                         public void paint(Graphics g) {
-                            // Try to redraw the front buffer when the OS says it has stomped
-                            // on it, using the back buffer. Calling bufferStrategy.show() here
-                            // sometimes throws NullPointerException or IllegalStateException,
-                            // but otherwise seems to work fine.
                             try {
-                                bufferStrategy.show();
+                                if (bufferStrategy.contentsLost()) {
+                                    // Drawing buffer was lost its content have to be recreated.
+                                    render();
+                                } else {
+                                    // Try to redraw the front buffer when the OS says it has stomped
+                                    // on it, using the back buffer. Calling bufferStrategy.show() here
+                                    // sometimes throws NullPointerException or IllegalStateException,
+                                    // but otherwise seems to work fine.
+                                    bufferStrategy.show();
+                                }
                             } catch (NullPointerException e) {
                             } catch (IllegalStateException e) {
                             }
@@ -241,6 +246,14 @@ public class CanvasFrameEx extends JFrame {
     protected double initialScale = 1.0;
     protected double inverseGamma = 1.0;
     private BufferStrategy bufferStrategy = null;
+
+    // Remember image or color that is being displayed.
+    // If drawing surface is destroyed it will have to be recreated using given image or color.
+    // See #showColor(), #showImage(), #render().
+    private Image image = null;
+    private Color color = null;
+    private final Color defaultColor = Color.WHITE;
+
 
     public long getLatency() {
         // if there exists some way to estimate the latency in real time,
@@ -337,10 +350,9 @@ public class CanvasFrameEx extends JFrame {
     }
 
     public void showColor(Color color) {
-        Graphics2D g = createGraphics();
-        g.setColor(color);
-        g.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-        releaseGraphics(g);
+        this.color = color;
+        this.image = null;
+        render();
     }
 
     // Java2D will do gamma correction for TYPE_CUSTOM BufferedImage, but
@@ -355,16 +367,37 @@ public class CanvasFrameEx extends JFrame {
     }
 
     public void showImage(Image image) {
+        this.image = image;
         if (image == null) {
             return;
-        } else if (isResizable() && needInitialResize) {
+        } else {
+            this.color = null;
+        }
+
+        if (isResizable() && needInitialResize) {
             int w = (int) Math.round(image.getWidth(null) * initialScale);
             int h = (int) Math.round(image.getHeight(null) * initialScale);
             setCanvasSize(w, h);
         }
-        Graphics2D g = createGraphics();
-        g.drawImage(image, 0, 0, canvas.getWidth(), canvas.getHeight(), null);
-        releaseGraphics(g);
+
+        render();
+    }
+
+    private void render() {
+        final Graphics2D g = createGraphics();
+        try {
+            if (image != null) {
+                int w = (int) Math.round(image.getWidth(null) * initialScale);
+                int h = (int) Math.round(image.getHeight(null) * initialScale);
+                g.drawImage(image, 0, 0, w, h, null);
+            } else {
+                final Color color = this.color != null ? this.color : defaultColor;
+                g.setColor(color);
+                g.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+            }
+        } finally {
+            releaseGraphics(g);
+        }
     }
 
     // This should not be called from the event dispatch thread (EDT),
