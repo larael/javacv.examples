@@ -179,7 +179,7 @@ public class CanvasFrameEx extends JFrame {
                         @Override
                         public void paint(Graphics g) {
                             try {
-                                if (bufferStrategy.contentsLost()) {
+                                if (bufferStrategy.contentsLost() || bufferStrategy.contentsRestored()) {
                                     // Drawing buffer was lost its content have to be recreated.
                                     render();
                                 } else {
@@ -188,6 +188,10 @@ public class CanvasFrameEx extends JFrame {
                                     // sometimes throws NullPointerException or IllegalStateException,
                                     // but otherwise seems to work fine.
                                     bufferStrategy.show();
+                                    // Double check
+                                    if (bufferStrategy.contentsLost() || bufferStrategy.contentsRestored()) {
+                                        render();
+                                    }
                                 }
                             } catch (NullPointerException e) {
                             } catch (IllegalStateException e) {
@@ -379,25 +383,42 @@ public class CanvasFrameEx extends JFrame {
             int h = (int) Math.round(image.getHeight(null) * initialScale);
             setCanvasSize(w, h);
         }
-
         render();
     }
 
     private void render() {
-        final Graphics2D g = createGraphics();
-        try {
-            if (image != null) {
-                int w = (int) Math.round(image.getWidth(null) * initialScale);
-                int h = (int) Math.round(image.getHeight(null) * initialScale);
-                g.drawImage(image, 0, 0, w, h, null);
-            } else {
-                final Color color = this.color != null ? this.color : defaultColor;
-                g.setColor(color);
-                g.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-            }
-        } finally {
-            releaseGraphics(g);
-        }
+        // The implementation follows example in javadoc for `BufferStrategy`
+        do {
+            // The following loop ensures that the contents of the drawing buffer
+            // are consistent in case the underlying surface was recreated
+            do {
+                // Get a new graphics context every time through the loop
+                // to make sure the strategy is validated
+                final Graphics2D g = createGraphics();
+
+                //Render
+                if (image != null) {
+                    int w = (int) Math.round(image.getWidth(null) * initialScale);
+                    int h = (int) Math.round(image.getHeight(null) * initialScale);
+                    g.drawImage(image, 0, 0, w, h, null);
+                } else {
+                    final Color color = this.color != null ? this.color : defaultColor;
+                    g.setColor(color);
+                    g.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+                }
+
+                // Dispose the graphics
+                g.dispose();
+
+                // Repeat the rendering if the drawing buffer contents
+                // were restored
+            } while (bufferStrategy.contentsRestored());
+
+            // Display the buffer
+            bufferStrategy.show();
+
+            // Repeat the rendering if the drawing buffer was lost
+        } while (bufferStrategy.contentsLost());
     }
 
     // This should not be called from the event dispatch thread (EDT),
